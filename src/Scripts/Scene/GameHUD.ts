@@ -55,7 +55,9 @@ export default class GameHUD extends Scene {
   updatePlayersPoint() {
     var leaderboard = `\n`;
     this.players.forEach((p) => {
-      leaderboard += `Guest${p.getData("id")} - ${p.getData("point")}\n`;
+      if (p.getData("id")) {
+        leaderboard += `Guest${p.getData("id")} - ${p.getData("point")}\n`;
+      }
     });
 
     this.playersPoint.setText(`Leaderboard: ${leaderboard}`);
