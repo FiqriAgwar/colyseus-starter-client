@@ -11,5 +11,5 @@ import { CollectibleSchema } from './CollectibleSchema'
 
 export class BattleSchema extends Schema {
     @type({ map: PlayerSchema }) public players: MapSchema<PlayerSchema> = new MapSchema<PlayerSchema>();
-    @type([ CollectibleSchema ]) public collectibles: ArraySchema<CollectibleSchema> = new ArraySchema<CollectibleSchema>();
+    @type({ map: CollectibleSchema }) public collectibles: MapSchema<CollectibleSchema> = new MapSchema<CollectibleSchema>();
 }

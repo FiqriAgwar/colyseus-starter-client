@@ -18,6 +18,8 @@ export default class GameHUD extends Scene {
   }) {
     this.player = data.player;
     this.players = data.players;
+
+    console.log(this.players);
   }
 
   create() {
@@ -28,10 +30,10 @@ export default class GameHUD extends Scene {
       .setOrigin(0);
 
     this.playersPoint = this.add
-      .text(540, 0, "Leaderboards:", {
+      .text(700, 0, "Leaderboards:", {
         font: "16px Arial",
       })
-      .setOrigin(1);
+      .setOrigin(0);
   }
 
   update() {
@@ -51,6 +53,11 @@ export default class GameHUD extends Scene {
   }
 
   updatePlayersPoint() {
-    this.players.forEach((p) => {});
+    var leaderboard = `\n`;
+    this.players.forEach((p) => {
+      leaderboard += `Guest${p.getData("id")} - ${p.getData("point")}`;
+    });
+
+    this.playersPoint.setText(`Leaderboard: ${leaderboard}`);
   }
 }

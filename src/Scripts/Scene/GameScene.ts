@@ -1,7 +1,9 @@
 import { Client, Room } from "colyseus.js";
 import { GameObjects, Input, Scene, Scenes, Types } from "phaser";
+import { ClassificationType } from "typescript";
 import { SERVER_MSG } from "../Config/ServerMessage";
 import { BattleSchema } from "../Schema/BattleSchema";
+import PhysicsUtil from "../Util/Util";
 
 export default class GameScene extends Scene {
   client!: Client;
@@ -77,9 +79,14 @@ export default class GameScene extends Scene {
       this.despawnPlayer(id);
     });
 
-    this.battleRoom.onMessage(SERVER_MSG.COLLECTED, (id: number) => {
-      this.despawnCoin(id);
-    });
+    this.battleRoom.onMessage(
+      SERVER_MSG.COLLECTED,
+      ({ coinId, nX, nY, playerId }) => {
+        console.log(coinId + " " + nX + " " + nY);
+        this.handleCoin(coinId, nX, nY);
+        this.handlePlayerPoint(playerId);
+      }
+    );
 
     this.battleRoom.onStateChange((state: BattleSchema) => {
       state.players.forEach((p) => {
@@ -100,17 +107,13 @@ export default class GameScene extends Scene {
     this.players.delete(id);
   }
 
-  despawnCoin(id: number) {
-    const coin = this.coins.get(id);
-    coin?.destroy();
-    this.coins.delete(id);
-  }
-
   handlePlayer(id: number, x: number, y: number, angle: number, point: number) {
     if (this.players.has(id)) {
       if (id !== this.playerId) {
         this.handlePlayerTransform(id, x, y, angle);
       }
+
+      this.players.get(id)?.setData("point", point);
 
       return;
     }
@@ -138,7 +141,7 @@ export default class GameScene extends Scene {
     if (this.coins.has(id)) {
       const coin = this.coins.get(id);
       coin?.setData("transform", { x, y });
-
+      coin?.setPosition(x, y);
       return;
     }
 
@@ -148,6 +151,7 @@ export default class GameScene extends Scene {
       coin.setOrigin(0.5);
       coin.setData("id", id);
       coin.setData("transform", { x, y });
+      this.children.sendToBack(coin);
       this.coins.set(id, coin);
     }
   }
@@ -155,6 +159,11 @@ export default class GameScene extends Scene {
   handlePlayerTransform(id: number, x: number, y: number, angle: number) {
     const player = this.players.get(id);
     player?.setData("transform", { x, y, angle });
+  }
+
+  handlePlayerPoint(id: number) {
+    const player = this.players.get(id);
+    player?.setData("point", player.getData("point") + 1);
   }
 
   setupCameraFollow() {
@@ -181,11 +190,13 @@ export default class GameScene extends Scene {
       this.cameras.main.worldView.y + this.cameras.main.height / 2;
 
     const rectangle = this.add.rectangle(0, 0, 300, 150, 0x069420, 1);
-    const spawnText = this.add.text(0, 0, "START GAME", {
-      fontSize: "32px",
-      wordWrap: { width: 200 },
-      align: "center",
-    });
+    const spawnText = this.add
+      .text(0, 0, "START GAME", {
+        fontSize: "32px",
+        wordWrap: { width: 200 },
+        align: "center",
+      })
+      .setOrigin(0.5);
     const button = this.add.container(screenCenterX, screenCenterY, [
       rectangle,
       spawnText,
@@ -250,6 +261,7 @@ export default class GameScene extends Scene {
       this.player.setAngle(-180).setVelocityY(200);
     }
 
+    this.checkCoinIntersect();
     this.sendPlayerTransform();
   }
 
@@ -277,6 +289,20 @@ export default class GameScene extends Scene {
       );
 
       player.setAngle(nAngle || 0);
+    });
+  }
+
+  checkCoinIntersect() {
+    this.coins.forEach((c) => {
+      if (PhysicsUtil.Intersect(c, this.player as GameObjects.GameObject, 75)) {
+        var coinId = c.getData("id");
+
+        const data = {
+          coinId,
+        };
+
+        this.battleRoom?.send(SERVER_MSG.COLLECTED, data);
+      }
     });
   }
 

@@ -13,6 +13,9 @@ const config: PhaserConfig = {
     mode: Scale.FIT,
     autoCenter: Scale.CENTER_BOTH,
   },
+  fps: {
+    forceSetTimeOut: true,
+  },
   physics: {
     default: "arcade",
     arcade: {
