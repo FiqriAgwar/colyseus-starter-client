@@ -10,6 +10,7 @@ import { Vector2DSchema } from './Vector2DSchema'
 
 export class PlayerSchema extends Schema {
     @type("boolean") public isSpawned!: boolean;
+    @type("boolean") public isAlive!: boolean;
     @type("uint16") public id!: number;
     @type("number") public angle!: number;
     @type(Vector2DSchema) public position: Vector2DSchema = new Vector2DSchema();

@@ -82,9 +82,17 @@ export default class GameScene extends Scene {
     this.battleRoom.onMessage(
       SERVER_MSG.COLLECTED,
       ({ coinId, nX, nY, playerId }) => {
-        console.log(coinId + " " + nX + " " + nY);
         this.handleCoin(coinId, nX, nY);
         this.handlePlayerPoint(playerId);
+      }
+    );
+
+    this.battleRoom.onMessage(
+      SERVER_MSG.CRASH,
+      ({ playerId, anotherPlayerId }) => {
+        console.log(playerId, anotherPlayerId);
+        this.handlePlayerCrash(playerId);
+        this.handlePlayerCrash(anotherPlayerId);
       }
     );
 
@@ -133,6 +141,7 @@ export default class GameScene extends Scene {
       player.setData("id", id);
       player.setData("transform", { x, y, angle: 0 });
       player.setData("point", point);
+      player.setData("alive", true);
       this.players.set(id, player);
     }
   }
@@ -164,6 +173,17 @@ export default class GameScene extends Scene {
   handlePlayerPoint(id: number) {
     const player = this.players.get(id);
     player?.setData("point", player.getData("point") + 1);
+  }
+
+  handlePlayerCrash(id: number) {
+    const player = this.players.get(id);
+    player?.setData("alive", false);
+
+    if (player?.getData("id") == this.playerId) {
+      this.player?.setData("alive", false);
+    }
+
+    player?.setTint(0x666666);
   }
 
   setupCameraFollow() {
@@ -220,6 +240,7 @@ export default class GameScene extends Scene {
     };
 
     this.battleRoom?.send("spawn", data);
+    this.player?.setData("alive", true);
   }
 
   setupRestartEvent() {
@@ -247,21 +268,35 @@ export default class GameScene extends Scene {
       return;
     }
 
-    this.player.setVelocity(0);
+    if (this.player?.getData("alive")) {
+      this.player.setVelocity(0);
+      if (this.cursors.left.isDown) {
+        this.player.setAngle(-90).setVelocityX(-200);
+      } else if (this.cursors.right.isDown) {
+        this.player.setAngle(90).setVelocityX(200);
+      }
 
-    if (this.cursors.left.isDown) {
-      this.player.setAngle(-90).setVelocityX(-200);
-    } else if (this.cursors.right.isDown) {
-      this.player.setAngle(90).setVelocityX(200);
+      if (this.cursors.up.isDown) {
+        this.player.setAngle(0).setVelocityY(-200);
+      } else if (this.cursors.down.isDown) {
+        this.player.setAngle(-180).setVelocityY(200);
+      }
+
+      this.checkCoinIntersect();
+      this.checkPlayerIntersect();
+    } else {
+      const randomMove = this.player.getData("randomMove");
+
+      if (!randomMove) {
+        const x = Math.floor(Math.random() * 150) - 75;
+        const y = Math.floor(Math.random() * 150) - 75;
+
+        this.player.setVelocity(x, y);
+
+        this.player.setData("randomMove", { x, y });
+      }
     }
 
-    if (this.cursors.up.isDown) {
-      this.player.setAngle(0).setVelocityY(-200);
-    } else if (this.cursors.down.isDown) {
-      this.player.setAngle(-180).setVelocityY(200);
-    }
-
-    this.checkCoinIntersect();
     this.sendPlayerTransform();
   }
 
@@ -294,7 +329,7 @@ export default class GameScene extends Scene {
 
   checkCoinIntersect() {
     this.coins.forEach((c) => {
-      if (PhysicsUtil.Intersect(c, this.player as GameObjects.GameObject, 75)) {
+      if (PhysicsUtil.Intersect(c, this.player as GameObjects.GameObject, 50)) {
         var coinId = c.getData("id");
 
         const data = {
@@ -302,6 +337,23 @@ export default class GameScene extends Scene {
         };
 
         this.battleRoom?.send(SERVER_MSG.COLLECTED, data);
+      }
+    });
+  }
+
+  checkPlayerIntersect() {
+    this.players.forEach((p) => {
+      if (
+        p.getData("id") !== this.playerId &&
+        PhysicsUtil.Intersect(p, this.player as GameObjects.GameObject, 75)
+      ) {
+        var enemyId = p.getData("id");
+
+        const data = {
+          enemyId,
+        };
+
+        this.battleRoom?.send(SERVER_MSG.CRASH, data);
       }
     });
   }

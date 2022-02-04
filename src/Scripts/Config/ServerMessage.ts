@@ -3,4 +3,5 @@ export enum SERVER_MSG {
   PONG = "pong",
   DESPAWN = "despawn",
   COLLECTED = "collected",
+  CRASH = "crash",
 }
