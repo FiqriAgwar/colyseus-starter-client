@@ -270,18 +270,8 @@ export default class GameScene extends Scene {
 
     if (this.player?.getData("alive")) {
       this.player.setVelocity(0);
-      if (this.cursors.left.isDown) {
-        this.player.setAngle(-90).setVelocityX(-200);
-      } else if (this.cursors.right.isDown) {
-        this.player.setAngle(90).setVelocityX(200);
-      }
 
-      if (this.cursors.up.isDown) {
-        this.player.setAngle(0).setVelocityY(-200);
-      } else if (this.cursors.down.isDown) {
-        this.player.setAngle(-180).setVelocityY(200);
-      }
-
+      this.handleInputUser();
       this.checkCoinIntersect();
       this.checkPlayerIntersect();
     } else {
@@ -325,6 +315,63 @@ export default class GameScene extends Scene {
 
       player.setAngle(nAngle || 0);
     });
+  }
+
+  handleInputUser() {
+    const left = this.cursors.left.isDown;
+    const right = this.cursors.right.isDown;
+    const up = this.cursors.up.isDown;
+    const down = this.cursors.down.isDown;
+
+    var rotation = 0;
+    var velocityX = 0;
+    var velocityY = 0;
+
+    if (left) {
+      rotation = -90;
+      velocityX = -200;
+      if (up) {
+        rotation += 45;
+        velocityY = -200;
+      } else if (down) {
+        rotation -= 45;
+        velocityY = 200;
+      }
+    } else if (right) {
+      rotation = 90;
+      velocityX = 200;
+      if (up) {
+        rotation -= 45;
+        velocityY = -200;
+      } else if (down) {
+        rotation += 45;
+        velocityY = 200;
+      }
+    }
+
+    if (down) {
+      rotation = -180;
+      velocityY = 200;
+      if (left) {
+        rotation += 45;
+        velocityX = -200;
+      } else if (right) {
+        rotation -= 45;
+        velocityX = 200;
+      }
+    } else if (up) {
+      rotation = 0;
+      velocityY = -200;
+      if (left) {
+        rotation -= 45;
+        velocityX = -200;
+      } else if (right) {
+        rotation += 45;
+        velocityX = 200;
+      }
+    }
+
+    this.player?.setVelocity(velocityX, velocityY).setAngle(rotation);
   }
 
   checkCoinIntersect() {
