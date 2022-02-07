@@ -5,13 +5,13 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "build": "webpack",
-    "start": "webpack --watch & live-server --port=8085"
+    "build": "webpack"
   },
   "author": "Aliffiqri Agwar",
   "license": "MIT",
   "dependencies": {
     "colyseus.js": "^0.14.13",
+    "express": "^4.17.2",
     "live-server": "^1.2.1",
     "phaser": "^3.55.2",
     "prettier": "^2.5.1",

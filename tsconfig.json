@@ -13,7 +13,5 @@
     "noImplicitAny": true,
     "esModuleInterop": true
   },
-  "exclude": [
-    "node_modules", "dist", "webpack.**.*"
-  ]
+  "exclude": ["node_modules", "dist", "webpack.**.*", "server.js"]
 }
