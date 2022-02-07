@@ -18,8 +18,6 @@ export default class GameHUD extends Scene {
   }) {
     this.player = data.player;
     this.players = data.players;
-
-    console.log(this.players);
   }
 
   create() {
@@ -54,11 +52,37 @@ export default class GameHUD extends Scene {
 
   updatePlayersPoint() {
     var leaderboard = `\n`;
+    var points = new Array<number>();
+    var user = new Array<string>();
+
     this.players.forEach((p) => {
       if (p.getData("id")) {
-        leaderboard += `Guest${p.getData("id")} - ${p.getData("point")}\n`;
+        points.push(p.getData("point"));
+        user.push(p.getData("id"));
       }
     });
+
+    for (let i = 0; i < points.length; i++) {
+      for (let j = i; j < points.length; j++) {
+        if (points[i] <= points[j]) {
+          var pts_temp = points[i];
+          points[i] = points[j];
+          points[j] = pts_temp;
+
+          var user_temp = user[i];
+          user[i] = user[j];
+          user[j] = user_temp;
+        }
+      }
+    }
+
+    for (let i = 0; i < points.length; i++) {
+      if (user[i] == this.player?.getData("id")) {
+        leaderboard += `${i + 1}. You - ${points[i]}\n`;
+      } else {
+        leaderboard += `${i + 1}. Guest${user[i]} - ${points[i]}\n`;
+      }
+    }
 
     this.playersPoint.setText(`Leaderboard: ${leaderboard}`);
   }

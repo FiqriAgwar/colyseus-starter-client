@@ -19,6 +19,7 @@ export default class GameScene extends Scene {
   bound = Math.pow(2, 12);
   cursors!: Types.Input.Keyboard.CursorKeys;
   gameHUD?: Scene;
+  startButton?: GameObjects.Container;
 
   constructor() {
     super("GameScene");
@@ -71,6 +72,12 @@ export default class GameScene extends Scene {
       return;
     }
 
+    for (let i = 0; i < this.bound / 32; i++) {
+      for (let j = 0; j < this.bound / 32; j++) {
+        this.add.image(i * 32, j * 32, "grass", Math.floor(Math.random() * 64));
+      }
+    }
+
     this.battleRoom.onMessage(SERVER_MSG.PING, (message) => {
       this.battleRoom?.send(SERVER_MSG.PONG, message);
     });
@@ -90,7 +97,6 @@ export default class GameScene extends Scene {
     this.battleRoom.onMessage(
       SERVER_MSG.CRASH,
       ({ playerId, anotherPlayerId }) => {
-        console.log(playerId, anotherPlayerId);
         this.handlePlayerCrash(playerId);
         this.handlePlayerCrash(anotherPlayerId);
       }
@@ -128,16 +134,17 @@ export default class GameScene extends Scene {
 
     let player;
     if (id === this.playerId) {
-      player = this.physics.add.image(x, y, "tanks"); //change to tank after spritesheet finished
+      player = this.physics.add.image(x, y, "tank"); //change to tank after spritesheet finished
       this.player = player;
       this.setupCameraFollow();
       this.setupPlayerHUD();
     } else {
-      player = this.physics.add.image(x, y, "tanks"); //change to tank after spritesheet finished
+      player = this.physics.add.image(x, y, "enemy"); //change to tank after spritesheet finished
     }
 
     if (player) {
       player.setOrigin(0.5);
+      player.setScale(1.5);
       player.setData("id", id);
       player.setData("transform", { x, y, angle: 0 });
       player.setData("point", point);
@@ -155,14 +162,26 @@ export default class GameScene extends Scene {
     }
 
     let coin;
-    coin = this.physics.add.image(x, y, "coin");
+    coin = this.physics.add.sprite(x, y, "coin");
     if (coin) {
       coin.setOrigin(0.5);
+      coin.setScale(1.5);
       coin.setData("id", id);
       coin.setData("transform", { x, y });
-      this.children.sendToBack(coin);
+      if (this.startButton?.active) {
+        this.children.moveBelow(coin, this.startButton);
+      }
       this.coins.set(id, coin);
     }
+
+    this.anims.create({
+      key: "coin",
+      frames: this.anims.generateFrameNumbers("coin", { start: 0, end: 8 }),
+      frameRate: 10,
+      repeat: -1,
+    });
+
+    coin.play("coin", true);
   }
 
   handlePlayerTransform(id: number, x: number, y: number, angle: number) {
@@ -183,7 +202,7 @@ export default class GameScene extends Scene {
       this.player?.setData("alive", false);
     }
 
-    player?.setTint(0x666666);
+    player?.setTexture("crashed");
   }
 
   setupCameraFollow() {
@@ -217,7 +236,7 @@ export default class GameScene extends Scene {
         align: "center",
       })
       .setOrigin(0.5);
-    const button = this.add.container(screenCenterX, screenCenterY, [
+    this.startButton = this.add.container(screenCenterX, screenCenterY, [
       rectangle,
       spawnText,
     ]);
@@ -228,8 +247,12 @@ export default class GameScene extends Scene {
       }
 
       this.spawnPlayer();
-      button.destroy();
+      this.startButton?.destroy();
     });
+
+    this.children.bringToTop(this.startButton);
+    this.children.bringToTop(rectangle);
+    this.children.bringToTop(spawnText);
   }
 
   spawnPlayer() {
@@ -275,16 +298,13 @@ export default class GameScene extends Scene {
       this.checkCoinIntersect();
       this.checkPlayerIntersect();
     } else {
-      const randomMove = this.player.getData("randomMove");
-
-      if (!randomMove) {
-        const x = Math.floor(Math.random() * 150) - 75;
-        const y = Math.floor(Math.random() * 150) - 75;
-
-        this.player.setVelocity(x, y);
-
-        this.player.setData("randomMove", { x, y });
-      }
+      // const randomMove = this.player.getData("randomMove");
+      // if (!randomMove) {
+      //   const x = Math.floor(Math.random() * 150) - 75;
+      //   const y = Math.floor(Math.random() * 150) - 75;
+      //   this.player.setVelocity(x, y);
+      //   this.player.setData("randomMove", { x, y });
+      // }
     }
 
     this.sendPlayerTransform();
@@ -314,6 +334,19 @@ export default class GameScene extends Scene {
       );
 
       player.setAngle(nAngle || 0);
+
+      if (!player.getData("alive")) {
+        var transform = player.getData("transform");
+        var fire = this.add.sprite(transform.x, transform.y, "fire");
+        this.anims.create({
+          key: "fire",
+          frames: this.anims.generateFrameNumbers("fire", { start: 0, end: 3 }),
+          frameRate: 10,
+          repeat: -1,
+        });
+
+        fire.play("fire", true);
+      }
     });
   }
 
@@ -323,7 +356,7 @@ export default class GameScene extends Scene {
     const up = this.cursors.up.isDown;
     const down = this.cursors.down.isDown;
 
-    var rotation = 0;
+    var rotation = this.player?.angle;
     var velocityX = 0;
     var velocityY = 0;
 
@@ -332,20 +365,24 @@ export default class GameScene extends Scene {
       velocityX = -200;
       if (up) {
         rotation += 45;
-        velocityY = -200;
+        velocityY = -100 * Math.sqrt(2);
+        velocityX = -100 * Math.sqrt(2);
       } else if (down) {
         rotation -= 45;
-        velocityY = 200;
+        velocityY = 100 * Math.sqrt(2);
+        velocityX = -100 * Math.sqrt(2);
       }
     } else if (right) {
       rotation = 90;
       velocityX = 200;
       if (up) {
         rotation -= 45;
-        velocityY = -200;
+        velocityY = -100 * Math.sqrt(2);
+        velocityX = 100 * Math.sqrt(2);
       } else if (down) {
         rotation += 45;
-        velocityY = 200;
+        velocityY = 100 * Math.sqrt(2);
+        velocityX = 100 * Math.sqrt(2);
       }
     }
 
@@ -354,24 +391,46 @@ export default class GameScene extends Scene {
       velocityY = 200;
       if (left) {
         rotation += 45;
-        velocityX = -200;
+        velocityY = 100 * Math.sqrt(2);
+        velocityX = -100 * Math.sqrt(2);
       } else if (right) {
         rotation -= 45;
-        velocityX = 200;
+        velocityY = 100 * Math.sqrt(2);
+        velocityX = 100 * Math.sqrt(2);
       }
     } else if (up) {
       rotation = 0;
       velocityY = -200;
       if (left) {
         rotation -= 45;
-        velocityX = -200;
+        velocityY = -100 * Math.sqrt(2);
+        velocityX = -100 * Math.sqrt(2);
       } else if (right) {
         rotation += 45;
-        velocityX = 200;
+        velocityY = -100 * Math.sqrt(2);
+        velocityX = 100 * Math.sqrt(2);
       }
     }
 
     this.player?.setVelocity(velocityX, velocityY).setAngle(rotation);
+
+    if (this.player?.active) {
+      if (this.player.x < 0) {
+        this.player.x = 0;
+      }
+
+      if (this.player.x >= this.bound) {
+        this.player.x = this.bound;
+      }
+
+      if (this.player.y < 0) {
+        this.player.y = 0;
+      }
+
+      if (this.player.y >= this.bound) {
+        this.player.y = this.bound;
+      }
+    }
   }
 
   checkCoinIntersect() {
