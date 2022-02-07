@@ -32,7 +32,7 @@ export default class GameScene extends Scene {
 
     this.playerId = (Math.floor(Math.random() * 1e5) + Date.now()) % 65000;
 
-    this.client = new Client(`https://tank-server-26216.herokuapp.com/`);
+    this.client = new Client(`ws://tank-server-26216.herokuapp.com/`);
 
     this.cameras.main.setBounds(0, 0, this.bound, this.bound);
     this.physics.world.setBounds(0, 0, this.bound, this.bound);
