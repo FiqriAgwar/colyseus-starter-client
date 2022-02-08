@@ -1,5 +1,5 @@
 import { Scene, GameObjects, Types } from "phaser";
-import { Type } from "typescript";
+import { idText, Type } from "typescript";
 
 export default class GameHUD extends Scene {
   constructor() {
@@ -11,6 +11,9 @@ export default class GameHUD extends Scene {
 
   playerCoord!: GameObjects.Text;
   playersPoint!: GameObjects.Text;
+
+  leaderboard!: Array<PlayerScore>;
+  updateLeader!: Phaser.Time.TimerEvent;
 
   init(data: {
     player: Types.Physics.Arcade.ImageWithDynamicBody;
@@ -32,11 +35,17 @@ export default class GameHUD extends Scene {
         font: "16px Arial",
       })
       .setOrigin(0);
+
+    this.updateLeader = this.time.addEvent({
+      delay: 500,
+      callback: this.updatePlayersPoint,
+      callbackScope: this,
+      loop: true,
+    });
   }
 
   update() {
     this.updatePlayerCoordinate();
-    this.updatePlayersPoint();
   }
 
   updatePlayerCoordinate() {
@@ -51,39 +60,109 @@ export default class GameHUD extends Scene {
   }
 
   updatePlayersPoint() {
-    var leaderboard = `\n`;
-    var points = new Array<number>();
-    var user = new Array<string>();
+    if (!this.leaderboard) {
+      this.leaderboard = new Array<PlayerScore>();
 
-    this.players.forEach((p) => {
-      if (p.getData("id")) {
-        points.push(p.getData("point"));
-        user.push(p.getData("id"));
+      this.players.forEach((p) => {
+        if (p.getData("id")) {
+          this.setLeaderboard(p);
+        }
+      });
+    } else {
+      this.players.forEach((p) => {
+        if (this.searchLeaderboard(p.getData("id"))) {
+          if (this.getPoint(p.getData("id")) !== p.getData("point")) {
+            this.setLeaderboard(p);
+          }
+        } else {
+          let newData = {
+            user: p.getData("id"),
+            point: p.getData("point"),
+          };
+          this.setLeaderboard(p);
+        }
+      });
+    }
+  }
+
+  searchLeaderboard(id: string): boolean {
+    this.leaderboard?.forEach((p) => {
+      if (p.user == id) {
+        return true;
       }
     });
 
-    for (let i = 0; i < points.length; i++) {
-      for (let j = i; j < points.length; j++) {
-        if (points[i] <= points[j]) {
-          var pts_temp = points[i];
-          points[i] = points[j];
-          points[j] = pts_temp;
+    return false;
+  }
 
-          var user_temp = user[i];
-          user[i] = user[j];
-          user[j] = user_temp;
+  getPoint(id: string): number {
+    this.leaderboard?.forEach((p) => {
+      if (p.user == id) {
+        return p.point;
+      }
+    });
+
+    return 0;
+  }
+
+  setLeaderboard(player: GameObjects.Image) {
+    let i = 0,
+      found = false;
+    while (i < this.leaderboard.length && !found) {
+      if (this.leaderboard[i].user === player.getData("id")) {
+        found = true;
+      } else {
+        i++;
+      }
+    }
+
+    if (found) {
+      this.leaderboard[i].point = player.getData("point");
+    } else {
+      let newData = {
+        user: player.getData("id"),
+        point: player.getData("point"),
+      };
+      this.leaderboard.push(newData);
+    }
+
+    this.updateTextLeaderboard();
+  }
+
+  sortLeaderboard() {
+    for (let i = 0; i < this.leaderboard?.length; i++) {
+      for (let j = i; j < this.leaderboard?.length; j++) {
+        if (this.leaderboard[i].point <= this.leaderboard[j].point) {
+          let temp = this.leaderboard[i];
+          this.leaderboard[i] = this.leaderboard[j];
+          this.leaderboard[j] = temp;
         }
       }
     }
+  }
 
-    for (let i = 0; i < points.length; i++) {
-      if (user[i] == this.player?.getData("id")) {
-        leaderboard += `${i + 1}. You - ${points[i]}\n`;
+  updateTextLeaderboard() {
+    let leaderboardText = `\n`;
+    this.sortLeaderboard();
+
+    for (let i = 0; i < this.leaderboard.length; i++) {
+      if (this.leaderboard[i].user === this.player?.getData("id")) {
+        leaderboardText += `${i + 1}. You - `;
       } else {
-        leaderboard += `${i + 1}. Guest${user[i]} - ${points[i]}\n`;
+        leaderboardText += `${i + 1}. ${this.leaderboard[i].user} - `;
       }
+
+      leaderboardText += `${this.leaderboard[i].point}\n`;
     }
 
-    this.playersPoint.setText(`Leaderboard: ${leaderboard}`);
+    if (this.playersPoint.getData("leader") !== leaderboardText) {
+      this.playersPoint.setText(`Leaderboard: ${leaderboardText}`);
+      this.playersPoint.setData("leader", leaderboardText);
+    }
   }
+}
+
+interface PlayerScore {
+  user: string;
+  point: number;
 }

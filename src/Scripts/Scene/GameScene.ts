@@ -1,6 +1,6 @@
 import { Client, Room } from "colyseus.js";
 import { GameObjects, Input, Scene, Scenes, Types } from "phaser";
-import { ClassificationType } from "typescript";
+import { ClassificationType, TypeFlags } from "typescript";
 import { SERVER_MSG } from "../Config/ServerMessage";
 import { BattleSchema } from "../Schema/BattleSchema";
 import PhysicsUtil from "../Util/Util";
@@ -15,6 +15,7 @@ export default class GameScene extends Scene {
   players!: Map<number, GameObjects.Image>;
 
   coins!: Map<number, GameObjects.Image>;
+  backgrounds?: Array<Phaser.GameObjects.Image>;
 
   bound = Math.pow(2, 12);
   cursors!: Types.Input.Keyboard.CursorKeys;
@@ -45,6 +46,7 @@ export default class GameScene extends Scene {
     this.player = undefined;
     this.players = new Map<number, GameObjects.Image>();
     this.coins = new Map<number, GameObjects.Image>();
+    this.backgrounds = new Array<GameObjects.Image>();
   }
 
   // !* -------- SETUP -------- *!
@@ -72,9 +74,16 @@ export default class GameScene extends Scene {
       return;
     }
 
-    for (let i = 0; i < this.bound / 32; i++) {
-      for (let j = 0; j < this.bound / 32; j++) {
-        this.add.image(i * 32, j * 32, "grass", Math.floor(Math.random() * 64));
+    for (let i = 0; i < this.bound / 32 + 1; i++) {
+      for (let j = 0; j < this.bound / 32 + 1; j++) {
+        let background = this.add.image(
+          i * 32,
+          j * 32,
+          "grass",
+          Math.floor(Math.random() * 64)
+        );
+
+        this.backgrounds?.push(background);
       }
     }
 
@@ -168,6 +177,7 @@ export default class GameScene extends Scene {
       coin.setScale(1.5);
       coin.setData("id", id);
       coin.setData("transform", { x, y });
+      coin.setData("flagged", false);
       if (this.startButton?.active) {
         this.children.moveBelow(coin, this.startButton);
       }
@@ -440,14 +450,12 @@ export default class GameScene extends Scene {
         var flagged =
           c.getData("flagged") !== undefined && c.getData("flagged");
 
-        console.log(flagged);
-
         if (coinId && !flagged) {
           c.setData("flagged", true);
           const data = {
             coinId,
           };
-
+          c.setPosition(-99, -99);
           this.battleRoom?.send(SERVER_MSG.COLLECTED, data);
         }
       }
