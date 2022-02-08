@@ -437,12 +437,19 @@ export default class GameScene extends Scene {
     this.coins.forEach((c) => {
       if (PhysicsUtil.Intersect(c, this.player as GameObjects.GameObject, 50)) {
         var coinId = c.getData("id");
+        var flagged =
+          c.getData("flagged") !== undefined && c.getData("flagged");
 
-        const data = {
-          coinId,
-        };
+        console.log(flagged);
 
-        this.battleRoom?.send(SERVER_MSG.COLLECTED, data);
+        if (coinId && !flagged) {
+          c.setData("flagged", true);
+          const data = {
+            coinId,
+          };
+
+          this.battleRoom?.send(SERVER_MSG.COLLECTED, data);
+        }
       }
     });
   }
