@@ -1,5 +1,5 @@
 import { Client, Room } from "colyseus.js";
-import { GameObjects, Input, Scene, Scenes, Types } from "phaser";
+import { GameObjects, Input, Scene, Scenes, Time, Types } from "phaser";
 import { ClassificationType, TypeFlags } from "typescript";
 import { SERVER_MSG } from "../Config/ServerMessage";
 import { BattleSchema } from "../Schema/BattleSchema";
@@ -33,7 +33,8 @@ export default class GameScene extends Scene {
 
     this.playerId = (Math.floor(Math.random() * 1e5) + Date.now()) % 65000;
 
-    this.client = new Client(`wss://tank-server-26216.herokuapp.com/`);
+    // this.client = new Client(`wss://tank-server-26216.herokuapp.com/`);
+    this.client = new Client(`ws://${window.location.hostname}:2567/`);
 
     this.cameras.main.setBounds(0, 0, this.bound, this.bound);
     this.physics.world.setBounds(0, 0, this.bound, this.bound);
@@ -111,6 +112,17 @@ export default class GameScene extends Scene {
       }
     );
 
+    this.battleRoom.onMessage(SERVER_MSG.HIT, ({ playerId, newHealth }) => {
+      let player = this.players.get(playerId);
+      if (player) {
+        player.setData("health", newHealth);
+
+        if (newHealth <= 0) {
+          this.handlePlayerCrash(playerId);
+        }
+      }
+    });
+
     this.battleRoom.onStateChange((state: BattleSchema) => {
       state.players.forEach((p) => {
         const { x, y } = p.position;
@@ -145,6 +157,7 @@ export default class GameScene extends Scene {
     if (id === this.playerId) {
       player = this.physics.add.image(x, y, "tank"); //change to tank after spritesheet finished
       this.player = player;
+      player.setData("canShoot", true);
       this.setupCameraFollow();
       this.setupPlayerHUD();
     } else {
@@ -317,6 +330,8 @@ export default class GameScene extends Scene {
       // }
     }
 
+    this.render();
+
     this.sendPlayerTransform();
   }
 
@@ -365,6 +380,7 @@ export default class GameScene extends Scene {
     const right = this.cursors.right.isDown;
     const up = this.cursors.up.isDown;
     const down = this.cursors.down.isDown;
+    const space = this.input.keyboard.on("keyup-space", this.shoot, this);
 
     var rotation = this.player?.angle;
     var velocityX = 0;
@@ -443,6 +459,26 @@ export default class GameScene extends Scene {
     }
   }
 
+  shoot() {
+    if (
+      !this.player?.active ||
+      !this.battleRoom ||
+      !this.player?.getData("canShoot")
+    ) {
+      return;
+    }
+
+    const data = {
+      x: this.player.x,
+      y: this.player.y,
+      angle: this.player.angle,
+      velocity: 500,
+    };
+
+    this.player?.setData("canShoot", false);
+    this.battleRoom?.send(SERVER_MSG.SHOOT, data);
+  }
+
   checkCoinIntersect() {
     this.coins.forEach((c) => {
       if (PhysicsUtil.Intersect(c, this.player as GameObjects.GameObject, 50)) {
@@ -450,12 +486,14 @@ export default class GameScene extends Scene {
         var flagged =
           c.getData("flagged") !== undefined && c.getData("flagged");
 
+        c.setPosition(-99, -99);
+
         if (coinId && !flagged) {
           c.setData("flagged", true);
           const data = {
             coinId,
           };
-          c.setPosition(-99, -99);
+
           this.battleRoom?.send(SERVER_MSG.COLLECTED, data);
         }
       }
@@ -477,6 +515,41 @@ export default class GameScene extends Scene {
         this.battleRoom?.send(SERVER_MSG.CRASH, data);
       }
     });
+  }
+
+  render() {
+    if (this.player) {
+      let player = this.player;
+      this.backgrounds?.forEach((bg) => {
+        if (
+          bg.x >= player.x - this.cameras.main.width &&
+          bg.x <= player.x + this.cameras.main.width &&
+          bg.y >= player.y - this.cameras.main.height &&
+          bg.y <= player.y + this.cameras.main.height
+        ) {
+          if (!bg.active) {
+            bg.active = true;
+          }
+        } else {
+          bg.active = false;
+        }
+      });
+
+      this.coins?.forEach((c) => {
+        if (
+          c.x >= player.x - this.cameras.main.width &&
+          c.x <= player.x + this.cameras.main.width &&
+          c.y >= player.y - this.cameras.main.height &&
+          c.y <= player.y + this.cameras.main.height
+        ) {
+          if (!c.active) {
+            c.active = true;
+          }
+        } else {
+          c.active = false;
+        }
+      });
+    }
   }
 
   sendPlayerTransform() {
